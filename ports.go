@@ -6,7 +6,7 @@ import (
 )
 
 type IStrategyModel interface {
-	Init([]domain.Candle)
+	Init([]domain.Candle, func(string, bool))
 	OnCandle(domain.Candle)
 	UpdateBinanceClients([]domain2.IBinanceClient)
 }

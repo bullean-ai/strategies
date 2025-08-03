@@ -86,7 +86,7 @@ func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients
 	}
 }
 
-func (st AIStrategyV1) Init(candles []domain.Candle, is_ready func(string string, is_ready bool)) {
+func (st AIStrategyV1) Init(candles []domain.Candle, is_ready func(mapName string, is_ready bool)) {
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
 	structName := reflect.TypeOf(st).Name()
 	mapName := fmt.Sprintf("%s_%s", structName, pair)
