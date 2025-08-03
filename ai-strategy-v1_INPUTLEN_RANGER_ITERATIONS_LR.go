@@ -248,3 +248,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 
 	st.lastprediction = prediction
 }
+
+func (st *AIStrategyV1) UpdateBinanceClients(binance_clients []binanceDomain.IBinanceClient) {
+	st.strategy.BinanceClients = binance_clients
+}
