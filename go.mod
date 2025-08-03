@@ -1,4 +1,4 @@
-module "github.com/bullean-ai/strategies"
+module github.com/bullean-ai/strategies
 
 go 1.24.2
 
