@@ -18,6 +18,7 @@ import (
 
 type AIStrategyV1 struct {
 	BaseAsset         string
+	TradeAsset        string
 	QuoteAsset        string
 	candles           []domain.Candle
 	NeuralNetConf     *ffnnDomain.Config
@@ -38,7 +39,7 @@ type AIStrategyV1 struct {
 	isReady        bool
 }
 
-func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, input_len int, ranger int, iterations int, lr float64) IStrategyModel {
+func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64) IStrategyModel {
 	neuralNetConf := &ffnnDomain.Config{
 		Inputs:     input_len + 1 + 12,
 		Layout:     []int{151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 3},
@@ -64,11 +65,7 @@ func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients
 		},
 	})
 
-	strategy := strategies.NewStrategy(base_asset, trade_asset, []string{quote_asset}, 40, binanceClients)
-
 	return &AIStrategyV1{
-		BaseAsset:         base_asset,
-		QuoteAsset:        quote_asset,
 		NeuralNetConf:     neuralNetConf,
 		inputLen:          input_len,
 		ranger:            ranger,
@@ -78,7 +75,6 @@ func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients
 		activeEvaluator:   activeEvaluator,
 		iterations:        iterations,
 		lr:                lr,
-		strategy:          strategy,
 		lastprediction:    0,
 		isTrainingEnd:     true,
 		longPosExist:      false,
@@ -86,7 +82,14 @@ func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients
 	}
 }
 
-func (st AIStrategyV1) Init(candles []domain.Candle, is_ready func(mapName string, is_ready bool)) {
+func (st AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, candles []domain.Candle, is_ready func(mapName string, is_ready bool)) {
+	strategy := strategies.NewStrategy(base_asset, trade_asset, []string{quote_asset}, 40, binanceClients)
+	st.strategy = strategy
+	st.BaseAsset = base_asset
+	st.TradeAsset = trade_asset
+	st.QuoteAsset = quote_asset
+	strategy.BinanceClients = binanceClients
+
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
 	structName := reflect.TypeOf(st).Name()
 	mapName := fmt.Sprintf("%s_%s", structName, pair)
