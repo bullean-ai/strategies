@@ -1,4 +1,4 @@
-package main
+package strategies
 
 import (
 	"fmt"
@@ -12,7 +12,8 @@ import (
 	"github.com/bullean-ai/bullean-go/neural_nets/ffnn/layer/neuron/synapse"
 	"github.com/bullean-ai/bullean-go/neural_nets/ffnn/solver"
 	"github.com/bullean-ai/bullean-go/strategies"
-	domain2 "github.com/bullean-ai/bullean-go/strategies/domain"
+	buySellStrategy "github.com/bullean-ai/bullean-go/strategies/domain"
+	domain2 "github.com/bullean-ai/strategies/strategies/domain"
 	"reflect"
 )
 
@@ -39,7 +40,7 @@ type AIStrategyV1 struct {
 	isReady        bool
 }
 
-func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64) IStrategyModel {
+func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64) domain2.IStrategyModel {
 	neuralNetConf := &ffnnDomain.Config{
 		Inputs:     input_len + 1 + 12,
 		Layout:     []int{151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 3},
@@ -103,11 +104,11 @@ func (st AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binance
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)
-		if domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
+		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
 			return 1
-		} else if domain2.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
 			return 0
-		} else if domain2.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
 			return 0
 		} else {
 			return 2
@@ -156,11 +157,11 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)
-		if domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
+		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
 			return 1
-		} else if domain2.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
 			return 0
-		} else if domain2.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && domain2.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
 			return 0
 		} else {
 			return 2
@@ -223,29 +224,29 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	st.strategy.Next(map[string]domain.Candle{
 		pair: candle,
 	})
-	st.strategy.Evaluate(func(lastLongEnterPrice, lastLongClosePrice float64) domain2.PositionType { // Long Enter
+	st.strategy.Evaluate(func(lastLongEnterPrice, lastLongClosePrice float64) buySellStrategy.PositionType { // Long Enter
 		if prediction == 1 && st.lastprediction == 1 && !st.longPosExist {
 			st.longPosExist = true
-			return domain2.POS_BUY
+			return buySellStrategy.POS_BUY
 		} else if prediction == -1 && st.lastprediction == -1 {
 			st.longPosExist = false
-			return domain2.POS_SELL
+			return buySellStrategy.POS_SELL
 		} else {
-			return domain2.POS_HOLD
+			return buySellStrategy.POS_HOLD
 		}
 
-	}, func(lastShortEnterPrice, lastShortClosePrice float64) domain2.PositionType { // Short Enter
+	}, func(lastShortEnterPrice, lastShortClosePrice float64) buySellStrategy.PositionType { // Short Enter
 		if lastShortEnterPrice == 0 {
 			lastShortEnterPrice = candle.Close
 		}
 		if prediction == -1 && st.lastprediction == -1 && !st.shortPosExist {
 			st.shortPosExist = true
-			return domain2.POS_BUY
+			return buySellStrategy.POS_BUY
 		} else if prediction == 1 && st.lastprediction == 1 {
 			st.shortPosExist = false
-			return domain2.POS_SELL
+			return buySellStrategy.POS_SELL
 		} else {
-			return domain2.POS_HOLD
+			return buySellStrategy.POS_HOLD
 		}
 	})
 

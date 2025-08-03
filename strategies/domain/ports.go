@@ -1,4 +1,4 @@
-package main
+package domain
 
 import (
 	binanceDomain "github.com/bullean-ai/bullean-go/binance/domain"
