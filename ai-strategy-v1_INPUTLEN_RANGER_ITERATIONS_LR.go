@@ -38,7 +38,7 @@ type AIStrategyV1 struct {
 	isReady        bool
 }
 
-func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, input_len int, ranger int, iterations int, lr float64) *AIStrategyV1 {
+func NewAIStrategyV1(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, input_len int, ranger int, iterations int, lr float64) IStrategyModel {
 	neuralNetConf := &ffnnDomain.Config{
 		Inputs:     input_len + 1 + 12,
 		Layout:     []int{151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 3},
