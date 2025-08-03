@@ -83,7 +83,7 @@ func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64) doma
 	}
 }
 
-func (st AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, candles []domain.Candle, is_ready func(mapName string, is_ready bool)) {
+func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanceClients []binanceDomain.IBinanceClient, candles []domain.Candle, is_ready func(mapName string, is_ready bool)) {
 	strategy := strategies.NewStrategy(base_asset, trade_asset, []string{quote_asset}, 40, binanceClients)
 	st.strategy = strategy
 	st.BaseAsset = base_asset
