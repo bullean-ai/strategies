@@ -89,6 +89,7 @@ func (st AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binance
 	st.BaseAsset = base_asset
 	st.TradeAsset = trade_asset
 	st.QuoteAsset = quote_asset
+	st.candles = candles
 	strategy.BinanceClients = binanceClients
 
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
@@ -133,7 +134,6 @@ func (st AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binance
 			Response: label,
 		})
 	}
-	st.candles = candles
 	st.trainingEvaluator.Train(examples, examples)
 	is_ready(mapName, true)
 	st.isReady = true
