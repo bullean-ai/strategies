@@ -1,9 +1,20 @@
 package strategies
 
-import "github.com/bullean-ai/strategies/strategies/domain"
+import (
+	ffnnDomain "github.com/bullean-ai/bullean-go/neural_nets/domain"
+	"github.com/bullean-ai/bullean-go/neural_nets/ffnn/layer/neuron/synapse"
+	"github.com/bullean-ai/strategies/strategies/domain"
+)
 
 func GetStrategies() map[string]domain.IStrategyModel {
 	return map[string]domain.IStrategyModel{
-		"AIStrategyV1": NewAIStrategyV1(800, 80, 500, 0.00005),
+		"AIStrategyV1": NewAIStrategyV1(1200, 80, 250, 0.00005, &ffnnDomain.Config{
+			Inputs:     1213,
+			Layout:     []int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 3},
+			Activation: ffnnDomain.ActivationReLU,
+			Mode:       ffnnDomain.ModeRegression,
+			Weight:     synapse.NewNormal(1e-20, 1e-20),
+			Bias:       true,
+		}),
 	}
 }

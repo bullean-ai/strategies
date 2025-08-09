@@ -9,7 +9,6 @@ import (
 	"github.com/bullean-ai/bullean-go/neural_nets"
 	ffnnDomain "github.com/bullean-ai/bullean-go/neural_nets/domain"
 	"github.com/bullean-ai/bullean-go/neural_nets/ffnn"
-	"github.com/bullean-ai/bullean-go/neural_nets/ffnn/layer/neuron/synapse"
 	"github.com/bullean-ai/bullean-go/neural_nets/ffnn/solver"
 	"github.com/bullean-ai/bullean-go/strategies"
 	buySellStrategy "github.com/bullean-ai/bullean-go/strategies/domain"
@@ -40,15 +39,8 @@ type AIStrategyV1 struct {
 	isReady        bool
 }
 
-func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64) domain2.IStrategyModel {
-	neuralNetConf := &ffnnDomain.Config{
-		Inputs:     input_len + 1 + 12,
-		Layout:     []int{151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 151, 3},
-		Activation: ffnnDomain.ActivationReLU,
-		Mode:       ffnnDomain.ModeRegression,
-		Weight:     synapse.NewNormal(1e-20, 1e-20),
-		Bias:       true,
-	}
+func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, config *ffnnDomain.Config) domain2.IStrategyModel {
+	neuralNetConf := config
 	trainingModel := ffnn.NewFFNN(neuralNetConf)
 	activeModel := ffnn.NewFFNN(neuralNetConf)
 	trainingEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
