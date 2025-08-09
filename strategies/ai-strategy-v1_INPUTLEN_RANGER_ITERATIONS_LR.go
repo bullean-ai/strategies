@@ -136,8 +136,11 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
 	var examples ffnnDomain.Examples
 	var prediction int
-	st.candles = st.candles[1:]
-	st.candles = append(st.candles, candle)
+	if len(st.candles) > 0 {
+		st.candles = st.candles[1:]
+		st.candles = append(st.candles, candle)
+	}
+
 	if st.isReady == false {
 		return
 	}
