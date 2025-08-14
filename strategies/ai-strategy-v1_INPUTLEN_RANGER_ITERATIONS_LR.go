@@ -187,7 +187,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 			newEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 				{
 					Model:      model2,
-					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 12),
+					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
 					Iterations: st.iterations,
 				},
 			})
@@ -196,7 +196,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 			newEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
 				{
 					Model:      st.activeModel,
-					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 12),
+					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
 					Iterations: st.iterations,
 				},
 			})
