@@ -46,14 +46,14 @@ func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, conf
 	trainingEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 		{
 			Model:      trainingModel,
-			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 12),
+			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
 			Iterations: iterations,
 		},
 	})
 	activeEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 		{
 			Model:      trainingModel,
-			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 12),
+			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
 			Iterations: iterations,
 		},
 	})
@@ -97,11 +97,11 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)
-		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
+		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.2 {
 			return 1
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.2 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
 			return 0
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.2 {
 			return 0
 		} else {
 			return 2
@@ -152,11 +152,11 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)
-		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.5 {
+		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.2 {
 			return 1
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.5 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.2 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
 			return 0
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.5 {
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.2 {
 			return 0
 		} else {
 			return 2
