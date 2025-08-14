@@ -249,5 +249,9 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 }
 
 func (st *AIStrategyV1) UpdateBinanceClients(binance_clients []binanceDomain.IBinanceClient) {
+	if st.strategy == nil {
+		fmt.Println("Strategy is not initialized, cannot update Binance clients")
+		return
+	}
 	st.strategy.BinanceClients = binance_clients
 }
