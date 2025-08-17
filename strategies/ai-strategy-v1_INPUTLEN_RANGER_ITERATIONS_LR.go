@@ -93,7 +93,7 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 
 	dataset.CreatePolicy(domain.PolicyConfig{
 		FeatName:    "feature_per_change",
-		FeatType:    domain.FEAT_CLOSE_PERCENTAGE,
+		FeatType:    domain.FEAT_CLOSE_PERCENTAGE_TRADE_TYPE,
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)
@@ -148,7 +148,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 
 	dataset.CreatePolicy(domain.PolicyConfig{
 		FeatName:    "feature_per_change",
-		FeatType:    domain.FEAT_CLOSE_PERCENTAGE,
+		FeatType:    domain.FEAT_CLOSE_PERCENTAGE_TRADE_TYPE,
 		PolicyRange: st.ranger,
 	}, func(candles []domain.Candle) int {
 		ema := indicators.MA(candles, 50)

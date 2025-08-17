@@ -9,7 +9,7 @@ import (
 func GetStrategies() map[string]domain.IStrategyModel {
 	return map[string]domain.IStrategyModel{
 		"AIStrategyV1": NewAIStrategyV1(1200, 80, 300, 0.0001, &ffnnDomain.Config{
-			Inputs:     1201,
+			Inputs:     1213,
 			Layout:     []int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 3},
 			Activation: ffnnDomain.ActivationReLU,
 			Mode:       ffnnDomain.ModeRegression,
