@@ -11,7 +11,7 @@ func GetStrategies() map[string]domain.IStrategyModel {
 		"AIStrategyV1": NewAIStrategyV1(1200, 80, 200, 0.001, &ffnnDomain.Config{
 			Inputs:     1213,
 			Layout:     []int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 3},
-			Activation: ffnnDomain.ActivationLeakyReLU,
+			Activation: ffnnDomain.ActivationReLU,
 			Mode:       ffnnDomain.ModeRegression,
 			Weight:     synapse.NewNormal(1e-20, 1e-20),
 			Bias:       true,
