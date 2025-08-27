@@ -127,6 +127,7 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 		})
 	}
 	st.trainingEvaluator.Train(examples, examples)
+	*st.activeEvaluator = *st.trainingEvaluator
 	is_ready(mapName, true)
 	st.isReady = true
 	return
@@ -200,7 +201,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 					Iterations: st.iterations,
 				},
 			})
-			st.activeEvaluator = st.trainingEvaluator
+			*st.activeEvaluator = *st.trainingEvaluator
 			st.isTrainingEnd = true
 		}
 	}()
