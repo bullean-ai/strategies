@@ -194,14 +194,13 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 			})
 			st.trainingEvaluator.Train(examples, examples)
 			*st.activeModel = *st.trainingModel
-			st.trainingEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
+			st.activeEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
 				{
 					Model:      st.activeModel,
 					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
 					Iterations: st.iterations,
 				},
 			})
-			*st.activeEvaluator = *st.trainingEvaluator
 			st.isTrainingEnd = true
 		}
 	}()
