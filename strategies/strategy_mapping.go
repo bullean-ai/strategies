@@ -8,10 +8,10 @@ import (
 
 func GetStrategies() map[string]domain.IStrategyModel {
 	return map[string]domain.IStrategyModel{
-		"AIStrategyV1": NewAIStrategyV1(900, 80, 200, 0.0001, &ffnnDomain.Config{
+		"AIStrategyV1": NewAIStrategyV1(900, 80, 200, 0.0002, &ffnnDomain.Config{
 			Inputs:     913,
-			Layout:     []int{80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 3},
-			Activation: ffnnDomain.ActivationReLU,
+			Layout:     []int{60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 3},
+			Activation: ffnnDomain.ActivationLeakyReLU,
 			Mode:       ffnnDomain.ModeRegression,
 			Weight:     synapse.NewNormal(1e-20, 1e-20),
 			Bias:       true,
