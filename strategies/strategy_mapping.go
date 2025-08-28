@@ -8,7 +8,7 @@ import (
 
 func GetStrategies() map[string]domain.IStrategyModel {
 	return map[string]domain.IStrategyModel{
-		"AIStrategyV1": NewAIStrategyV1(900, 80, 250, 0.0002, &ffnnDomain.Config{
+		"AIStrategyV1": NewAIStrategyV1(900, 80, 250, 0.0002, ffnnDomain.Config{
 			Inputs:     913,
 			Layout:     []int{80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 3},
 			Activation: ffnnDomain.ActivationLeakyReLU,

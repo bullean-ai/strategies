@@ -39,10 +39,10 @@ type AIStrategyV1 struct {
 	isReady        bool
 }
 
-func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, config *ffnnDomain.Config) domain2.IStrategyModel {
-	neuralNetConf := *config
-	trainingModel := ffnn.NewFFNN(&neuralNetConf)
-	activeModel := ffnn.NewFFNN(&neuralNetConf)
+func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, config ffnnDomain.Config) domain2.IStrategyModel {
+	neuralNetConf := config
+	trainingModel := ffnn.NewFFNN(neuralNetConf)
+	activeModel := ffnn.NewFFNN(neuralNetConf)
 	trainingEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 		{
 			Model:      trainingModel,
@@ -186,7 +186,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 			st.isTrainingEnd = false
 			neuralNetConf := *st.NeuralNetConf
 			st.trainingModel = nil
-			st.trainingModel = ffnn.NewFFNN(&neuralNetConf /*ffnnDomain.DefaultFFNNConfig(ranger)*/)
+			st.trainingModel = ffnn.NewFFNN(neuralNetConf /*ffnnDomain.DefaultFFNNConfig(ranger)*/)
 			st.trainingEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
 				{
 					Model:      st.trainingModel,
