@@ -2,6 +2,10 @@ package strategies
 
 import (
 	"fmt"
+	"log"
+	"reflect"
+	"sync"
+
 	binanceDomain "github.com/bullean-ai/bullean-go/binance/domain"
 	"github.com/bullean-ai/bullean-go/data"
 	"github.com/bullean-ai/bullean-go/data/domain"
@@ -13,65 +17,94 @@ import (
 	"github.com/bullean-ai/bullean-go/strategies"
 	buySellStrategy "github.com/bullean-ai/bullean-go/strategies/domain"
 	domain2 "github.com/bullean-ai/strategies/strategies/domain"
-	"reflect"
 )
 
-type AIStrategyV1 struct {
-	BaseAsset         string
-	TradeAsset        string
-	QuoteAsset        string
-	candles           []domain.Candle
-	NeuralNetConf     *ffnnDomain.Config
-	inputLen          int
-	ranger            int
-	iterations        int
-	lr                float64
-	trainingModel     *ffnn.FFNN
-	activeModel       *ffnn.FFNN
-	activeEvaluator   *neural_nets.Evaluator
-	trainingEvaluator *neural_nets.Evaluator
-	strategy          *strategies.Strategy
+type TrainingTask struct {
+	examples ffnnDomain.Examples
+}
 
+type AIStrategyV1 struct {
+	BaseAsset     string
+	TradeAsset    string
+	QuoteAsset    string
+	candles       []domain.Candle
+	NeuralNetConf *ffnnDomain.Config
+	inputLen      int
+	ranger        int
+	iterations    int
+	lr            float64
+
+	trainingModel *ffnn.FFNN
+
+	mu              sync.RWMutex
+	activeModel     *ffnn.FFNN
+	activeEvaluator *neural_nets.Evaluator
+
+	strategy       *strategies.Strategy
 	lastprediction int
-	isTrainingEnd  bool
 	longPosExist   bool
 	shortPosExist  bool
 	isReady        bool
+
+	trainingChan chan TrainingTask
 }
 
 func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, config ffnnDomain.Config) domain2.IStrategyModel {
 	neuralNetConf := config
+
+	// Modelleri ve değerlendiricileri bir kere başlat
 	trainingModel := ffnn.NewFFNN(neuralNetConf)
 	activeModel := ffnn.NewFFNN(neuralNetConf)
-	trainingEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
-		{
-			Model:      trainingModel,
-			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
-			Iterations: iterations,
-		},
-	})
 	activeEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 		{
-			Model:      trainingModel,
-			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
-			Iterations: iterations,
+			Model: activeModel,
 		},
 	})
 
-	return &AIStrategyV1{
-		NeuralNetConf:     &neuralNetConf,
-		inputLen:          input_len,
-		ranger:            ranger,
-		trainingModel:     trainingModel,
-		activeModel:       activeModel,
-		trainingEvaluator: trainingEvaluator,
-		activeEvaluator:   activeEvaluator,
-		iterations:        iterations,
-		lr:                lr,
-		lastprediction:    0,
-		isTrainingEnd:     true,
-		longPosExist:      false,
-		shortPosExist:     false,
+	s := &AIStrategyV1{
+		NeuralNetConf:   &neuralNetConf,
+		inputLen:        input_len,
+		ranger:          ranger,
+		iterations:      iterations,
+		lr:              lr,
+		trainingModel:   trainingModel,
+		activeModel:     activeModel,
+		activeEvaluator: activeEvaluator,
+		lastprediction:  0,
+		longPosExist:    false,
+		shortPosExist:   false,
+		isReady:         false,
+
+		trainingChan: make(chan TrainingTask, 1),
+	}
+
+	go s.runTrainer()
+
+	return s
+}
+
+func (st *AIStrategyV1) runTrainer() {
+	trainer := ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6)
+
+	for task := range st.trainingChan {
+		st.trainingModel = ffnn.NewFFNN(*st.NeuralNetConf)
+		evaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
+			{
+				Model:      st.trainingModel,
+				Trainer:    trainer,
+				Iterations: st.iterations,
+			},
+		})
+		evaluator.Train(task.examples, task.examples)
+		log.Println("Eğitim tamamlandı.")
+		st.mu.Lock()
+		st.activeModel = st.trainingModel
+		st.activeEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
+			{
+				Model: st.activeModel,
+			},
+		})
+		st.mu.Unlock()
 	}
 }
 
@@ -87,56 +120,22 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
 	structName := reflect.TypeOf(st).Name()
 	mapName := fmt.Sprintf("%s_%s", structName, pair)
-	var examples ffnnDomain.Examples
 
-	dataset := data.NewDataSet(candles, st.inputLen)
+	examples := st.createExamples(candles)
 
-	dataset.CreatePolicy(domain.PolicyConfig{
-		FeatName:    "feature_per_change",
-		FeatType:    domain.FEAT_CLOSE_PERCENTAGE_TRADE_TYPE,
-		PolicyRange: st.ranger,
-	}, func(candles []domain.Candle) int {
-		ema := indicators.MA(candles, 50)
-		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.3 {
-			return 1
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.3 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
-			return 0
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.3 {
-			return 0
-		} else {
-			return 2
-		}
-	})
-	dataset.SerializeLabels()
-
-	dataFrame := dataset.GetDataSet()
-
-	for i := 0; i < len(dataFrame); i++ {
-		label := []float64{}
-		if dataFrame[i].Label == 1 {
-			label = []float64{1, 0, 0}
-		} else if dataFrame[i].Label == 2 {
-			label = []float64{0, 1, 0}
-
-		} else {
-			label = []float64{0, 0, 1}
-		}
-		examples = append(examples, ffnnDomain.Example{
-			Input:    dataFrame[i].Features,
-			Response: label,
-		})
+	st.trainingChan <- TrainingTask{
+		examples: examples,
 	}
-	st.trainingEvaluator.Train(examples, examples)
-	*st.activeEvaluator = *st.trainingEvaluator
-	is_ready(mapName, true)
+
 	st.isReady = true
+	is_ready(mapName, true)
 	return
 }
 
+// OnCandle, yeni mum verisi geldiğinde çağrılır
 func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
-	var examples ffnnDomain.Examples
-	var prediction int
+
 	if len(st.candles) > 0 {
 		st.candles = st.candles[1:]
 		st.candles = append(st.candles, candle)
@@ -145,72 +144,28 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	if st.isReady == false {
 		return
 	}
-	dataset := data.NewDataSet(st.candles, st.inputLen)
 
-	dataset.CreatePolicy(domain.PolicyConfig{
-		FeatName:    "feature_per_change",
-		FeatType:    domain.FEAT_CLOSE_PERCENTAGE_TRADE_TYPE,
-		PolicyRange: st.ranger,
-	}, func(candles []domain.Candle) int {
-		ema := indicators.MA(candles, 50)
-		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.3 {
-			return 1
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.3 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
-			return 0
-		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.3 {
-			return 0
-		} else {
-			return 2
-		}
-	})
-	dataset.SerializeLabels()
-	dataFrame := dataset.GetDataSet()
+	examples := st.createExamples(st.candles)
 
-	for i := 0; i < len(dataFrame); i++ {
-		label := []float64{}
-		if dataFrame[i].Label == 1 {
-			label = []float64{1, 0, 0}
-		} else if dataFrame[i].Label == 2 {
-			label = []float64{0, 1, 0}
-
-		} else {
-			label = []float64{0, 0, 1}
-		}
-		examples = append(examples, ffnnDomain.Example{
-			Input:    dataFrame[i].Features,
-			Response: label,
-		})
+	select {
+	case st.trainingChan <- TrainingTask{examples: examples}:
+	default:
 	}
-	go func() {
-		if st.isTrainingEnd {
-			st.isTrainingEnd = false
-			neuralNetConf := *st.NeuralNetConf
-			st.trainingModel = nil
-			st.trainingModel = ffnn.NewFFNN(neuralNetConf /*ffnnDomain.DefaultFFNNConfig(ranger)*/)
-			st.trainingEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
-				{
-					Model:      st.trainingModel,
-					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
-					Iterations: st.iterations,
-				},
-			})
-			st.trainingEvaluator.Train(examples, examples)
-			activeModel := *st.trainingModel
-			st.activeModel = &activeModel
-			st.activeEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
-				{
-					Model:      st.activeModel,
-					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
-					Iterations: st.iterations,
-				},
-			})
-			st.isTrainingEnd = true
-		}
-	}()
+
+	// Tahmin işlemi için okuma kilidi kullandık
+	st.mu.RLock()
+	if st.activeEvaluator == nil || len(examples) == 0 {
+		st.mu.RUnlock()
+		return
+	}
 	pred := st.activeEvaluator.Predict(examples[len(examples)-1].Input)
+	st.mu.RUnlock()
+
+	prediction := 0
 	buy := pred[0]
 	sell := pred[1]
 	hold := pred[2]
+
 	if buy >= .6 {
 		prediction = 1
 	} else if sell >= .6 {
@@ -222,7 +177,8 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	st.strategy.Next(map[string]domain.Candle{
 		pair: candle,
 	})
-	st.strategy.Evaluate(func(lastLongEnterPrice, lastLongClosePrice float64) buySellStrategy.PositionType { // Long Enter
+
+	st.strategy.Evaluate(func(lastLongEnterPrice, lastLongClosePrice float64) buySellStrategy.PositionType {
 		if prediction == 1 && st.lastprediction == 1 && !st.longPosExist {
 			st.longPosExist = true
 			return buySellStrategy.POS_BUY
@@ -232,8 +188,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 		} else {
 			return buySellStrategy.POS_HOLD
 		}
-
-	}, func(lastShortEnterPrice, lastShortClosePrice float64) buySellStrategy.PositionType { // Short Enter
+	}, func(lastShortEnterPrice, lastShortClosePrice float64) buySellStrategy.PositionType {
 		if lastShortEnterPrice == 0 {
 			lastShortEnterPrice = candle.Close
 		}
@@ -257,4 +212,44 @@ func (st *AIStrategyV1) UpdateBinanceClients(binance_clients []binanceDomain.IBi
 		return
 	}
 	st.strategy.BinanceClients = binance_clients
+}
+
+func (st *AIStrategyV1) createExamples(candles []domain.Candle) ffnnDomain.Examples {
+	var examples ffnnDomain.Examples
+	dataset := data.NewDataSet(candles, st.inputLen)
+
+	dataset.CreatePolicy(domain.PolicyConfig{
+		FeatName:    "feature_per_change",
+		FeatType:    domain.FEAT_CLOSE_PERCENTAGE_TRADE_TYPE,
+		PolicyRange: st.ranger,
+	}, func(candles []domain.Candle) int {
+		ema := indicators.MA(candles, 50)
+		if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0.3 {
+			return 1
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0.3 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= 0 {
+			return 0
+		} else if buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) < 0 && buySellStrategy.PercentageChange(ema[0], ema[len(ema)-1]) >= -0.3 {
+			return 0
+		} else {
+			return 2
+		}
+	})
+	dataset.SerializeLabels()
+	dataFrame := dataset.GetDataSet()
+
+	for i := 0; i < len(dataFrame); i++ {
+		label := []float64{}
+		if dataFrame[i].Label == 1 {
+			label = []float64{1, 0, 0}
+		} else if dataFrame[i].Label == 2 {
+			label = []float64{0, 1, 0}
+		} else {
+			label = []float64{0, 0, 1}
+		}
+		examples = append(examples, ffnnDomain.Example{
+			Input:    dataFrame[i].Features,
+			Response: label,
+		})
+	}
+	return examples
 }
