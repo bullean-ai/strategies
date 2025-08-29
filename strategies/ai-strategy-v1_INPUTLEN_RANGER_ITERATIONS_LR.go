@@ -105,6 +105,7 @@ func (st *AIStrategyV1) runTrainer() {
 			},
 		})
 		st.mu.Unlock()
+		st.isReady = true
 	}
 }
 
@@ -127,7 +128,6 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 		examples: examples,
 	}
 
-	st.isReady = true
 	is_ready(mapName, true)
 	return
 }
