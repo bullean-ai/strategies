@@ -2,10 +2,6 @@ package strategies
 
 import (
 	"fmt"
-	"log"
-	"reflect"
-	"sync"
-
 	binanceDomain "github.com/bullean-ai/bullean-go/binance/domain"
 	"github.com/bullean-ai/bullean-go/data"
 	"github.com/bullean-ai/bullean-go/data/domain"
@@ -17,9 +13,13 @@ import (
 	"github.com/bullean-ai/bullean-go/strategies"
 	buySellStrategy "github.com/bullean-ai/bullean-go/strategies/domain"
 	domain2 "github.com/bullean-ai/strategies/strategies/domain"
+	"log"
+	"reflect"
+	"sync"
 )
 
 type TrainingTask struct {
+	Symbol   string
 	examples ffnnDomain.Examples
 }
 
@@ -36,9 +36,7 @@ type AIStrategyV1 struct {
 
 	trainingModel *ffnn.FFNN
 
-	mu              sync.RWMutex
-	activeModel     *ffnn.FFNN
-	activeEvaluator *neural_nets.Evaluator
+	mu sync.RWMutex
 
 	strategy       *strategies.Strategy
 	lastprediction int
@@ -51,29 +49,16 @@ type AIStrategyV1 struct {
 
 func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, config ffnnDomain.Config) domain2.IStrategyModel {
 	neuralNetConf := config
-
-	// Modelleri ve değerlendiricileri bir kere başlat
-	trainingModel := ffnn.NewFFNN(neuralNetConf)
-	activeModel := ffnn.NewFFNN(neuralNetConf)
-	activeEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
-		{
-			Model: activeModel,
-		},
-	})
-
 	s := &AIStrategyV1{
-		NeuralNetConf:   &neuralNetConf,
-		inputLen:        input_len,
-		ranger:          ranger,
-		iterations:      iterations,
-		lr:              lr,
-		trainingModel:   trainingModel,
-		activeModel:     activeModel,
-		activeEvaluator: activeEvaluator,
-		lastprediction:  0,
-		longPosExist:    false,
-		shortPosExist:   false,
-		isReady:         false,
+		NeuralNetConf:  &neuralNetConf,
+		inputLen:       input_len,
+		ranger:         ranger,
+		iterations:     iterations,
+		lr:             lr,
+		lastprediction: 0,
+		longPosExist:   false,
+		shortPosExist:  false,
+		isReady:        false,
 
 		trainingChan: make(chan TrainingTask, 1),
 	}
@@ -84,9 +69,11 @@ func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, conf
 }
 
 func (st *AIStrategyV1) runTrainer() {
-	trainer := ffnn.NewTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1)
+	trainer := ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6)
 
 	for task := range st.trainingChan {
+		examples := make(ffnnDomain.Examples, len(task.examples))
+		copy(examples, task.examples)
 		newTrainingModel := ffnn.NewFFNN(*st.NeuralNetConf)
 		evaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 			{
@@ -94,19 +81,11 @@ func (st *AIStrategyV1) runTrainer() {
 				Trainer:    trainer,
 				Iterations: st.iterations,
 			},
-		})
+		}, task.Symbol)
 
-		evaluator.Train(task.examples, task.examples)
+		evaluator.Train(examples, examples)
 		log.Println("Eğitim tamamlandı.")
 
-		st.mu.Lock()
-		st.activeModel = newTrainingModel
-		st.activeEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
-			{
-				Model: st.activeModel,
-			},
-		})
-		st.mu.Unlock()
 		st.isReady = true
 	}
 }
@@ -127,6 +106,7 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 	examples := st.createExamples(candles)
 
 	st.trainingChan <- TrainingTask{
+		Symbol:   pair,
 		examples: examples,
 	}
 
@@ -136,32 +116,43 @@ func (st *AIStrategyV1) Init(base_asset, trade_asset, quote_asset string, binanc
 
 // OnCandle, yeni mum verisi geldiğinde çağrılır
 func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
-	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
-
 	if len(st.candles) > 0 {
 		st.candles = st.candles[1:]
-		st.candles = append(st.candles, candle)
+		st.candles = append(st.candles, domain.Candle{
+			Symbol:     candle.Symbol,
+			OpenTime:   candle.OpenTime,
+			Open:       candle.Open,
+			High:       candle.High,
+			Low:        candle.Low,
+			Close:      candle.Close,
+			CloseTime:  candle.CloseTime,
+			Volume:     candle.Volume,
+			Trades:     candle.Trades,
+			TradeTypes: candle.TradeTypes,
+		})
 	}
-
 	if st.isReady == false {
 		return
 	}
-
-	examples := st.createExamples(st.candles)
+	pair := fmt.Sprintf("%s%s", st.QuoteAsset, st.BaseAsset)
+	candles := make([]domain.Candle, len(st.candles))
+	copy(candles, st.candles)
+	examples := st.createExamples(candles)
 
 	select {
-	case st.trainingChan <- TrainingTask{examples: examples}:
+	case st.trainingChan <- TrainingTask{
+		Symbol:   pair,
+		examples: examples,
+	}:
 	default:
 	}
 
-	// Tahmin işlemi için okuma kilidi kullandık
-	st.mu.RLock()
-	if st.activeEvaluator == nil || len(examples) == 0 {
-		st.mu.RUnlock()
+	model, err := ffnn.LoadModel(fmt.Sprintf("%s_model.json", pair))
+	if err != nil {
+		fmt.Println("Error loading model:", err)
 		return
 	}
-	pred := st.activeEvaluator.Predict(examples[len(examples)-1].Input)
-	st.mu.RUnlock()
+	pred := model.Predict(examples[len(examples)-1].Input)
 
 	prediction := 0
 	buy := pred[0]
