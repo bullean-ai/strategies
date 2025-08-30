@@ -84,21 +84,23 @@ func NewAIStrategyV1(input_len int, ranger int, iterations int, lr float64, conf
 }
 
 func (st *AIStrategyV1) runTrainer() {
-	trainer := ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6)
+	trainer := ffnn.NewTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1)
 
 	for task := range st.trainingChan {
-		st.trainingModel = ffnn.NewFFNN(*st.NeuralNetConf)
+		newTrainingModel := ffnn.NewFFNN(*st.NeuralNetConf)
 		evaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 			{
-				Model:      st.trainingModel,
+				Model:      newTrainingModel,
 				Trainer:    trainer,
 				Iterations: st.iterations,
 			},
 		})
+
 		evaluator.Train(task.examples, task.examples)
 		log.Println("Eğitim tamamlandı.")
+
 		st.mu.Lock()
-		st.activeModel = st.trainingModel
+		st.activeModel = newTrainingModel
 		st.activeEvaluator = neural_nets.NewEvaluator([]ffnnDomain.Neural{
 			{
 				Model: st.activeModel,
