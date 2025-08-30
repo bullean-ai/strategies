@@ -1,4 +1,4 @@
-github.com/bullean-ai/bullean-go v0.0.73 h1:715Lviuruuo8dbYOQRxLPk8ZhWye9aI9DY4G7GtaUgw=
-github.com/bullean-ai/bullean-go v0.0.73/go.mod h1:qs8Hbu2KB6apRGq4DSAcvIuNqZ5H9APPMvUJqGYSwk0=
+github.com/bullean-ai/bullean-go v0.0.77 h1:IotjZ+JaYjFo/+ZZUp3cEe7Hex47MHrGvpMyqxqt0mk=
+github.com/bullean-ai/bullean-go v0.0.77/go.mod h1:qs8Hbu2KB6apRGq4DSAcvIuNqZ5H9APPMvUJqGYSwk0=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
