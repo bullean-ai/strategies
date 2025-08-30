@@ -28,8 +28,8 @@ type AIStrategyV1ORG struct {
 	lr                float64
 	trainingModel     *ffnn.FFNN
 	activeModel       *ffnn.FFNN
-	activeEvaluator   *neural_nets.Evaluator
-	trainingEvaluator *neural_nets.Evaluator
+	activeEvaluator   neural_nets.Evaluator
+	trainingEvaluator neural_nets.Evaluator
 	strategy          *strategies.Strategy
 
 	lastprediction int
@@ -49,14 +49,14 @@ func NewAIStrategyV1ORG(input_len int, ranger int, iterations int, lr float64, c
 			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
 			Iterations: iterations,
 		},
-	})
+	}, "")
 	activeEvaluator := neural_nets.NewEvaluator([]ffnnDomain.Neural{
 		{
 			Model:      trainingModel,
 			Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(lr, 0, 0, 1e-12), 1, 100, 6),
 			Iterations: iterations,
 		},
-	})
+	}, "")
 
 	return &AIStrategyV1ORG{
 		NeuralNetConf:     &neuralNetConf,
@@ -127,7 +127,7 @@ func (st *AIStrategyV1ORG) Init(base_asset, trade_asset, quote_asset string, bin
 		})
 	}
 	st.trainingEvaluator.Train(examples, examples)
-	*st.activeEvaluator = *st.trainingEvaluator
+	st.activeEvaluator = st.trainingEvaluator
 	is_ready(mapName, true)
 	st.isReady = true
 	return
@@ -193,7 +193,7 @@ func (st *AIStrategyV1ORG) OnCandle(candle domain.Candle) {
 					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
 					Iterations: st.iterations,
 				},
-			})
+			}, pair)
 			st.trainingEvaluator.Train(examples, examples)
 			activeModel := *st.trainingModel
 			st.activeModel = &activeModel
@@ -203,7 +203,7 @@ func (st *AIStrategyV1ORG) OnCandle(candle domain.Candle) {
 					Trainer:    ffnn.NewBatchTrainer(solver.NewAdam(st.lr, 0, 0, 1e-12), 1, 100, 6),
 					Iterations: st.iterations,
 				},
-			})
+			}, pair)
 			st.isTrainingEnd = true
 		}
 	}()
