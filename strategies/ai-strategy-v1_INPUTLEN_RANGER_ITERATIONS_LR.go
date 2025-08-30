@@ -153,7 +153,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 		return
 	}
 	pred := model.Predict(examples[len(examples)-1].Input)
-
+	fmt.Println(pred)
 	prediction := 0
 	buy := pred[0]
 	sell := pred[1]
