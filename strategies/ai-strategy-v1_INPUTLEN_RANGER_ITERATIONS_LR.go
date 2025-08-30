@@ -147,7 +147,7 @@ func (st *AIStrategyV1) OnCandle(candle domain.Candle) {
 	default:
 	}
 
-	model, err := ffnn.LoadModel(fmt.Sprintf("%s_model.json", pair))
+	model, err := ffnn.LoadModel(fmt.Sprintf("./%s_model.json", pair))
 	if err != nil {
 		fmt.Println("Error loading model:", err)
 		return
